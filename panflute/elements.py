@@ -6,11 +6,9 @@ from collections import OrderedDict
 
 from .utils import check_type, check_group, encode_dict
 from .containers import ListContainer, DictContainer
-from .base import Element, Block, Inline, MetaValue
-
-import sys
-py2 = sys.version_info[0] == 2
-if not py2: basestring = str
+from .base import Element, Block, BlockText, Inline, InlineText, InlineBlock, MetaValue
+from typing import List, Dict, Tuple
+from .constants import *
 
 
 # ---------------------------
@@ -28,7 +26,6 @@ class Doc(Element):
     as means of global variables that can later be read by different calls.
 
     :param args: top--level documents contained in the document
-    :type args: :class:`Block` sequence
     :param metadata: the frontpage metadata
     :type metadata: ``dict``
     :param format: output format, such as 'markdown', 'latex' and 'html'
@@ -48,8 +45,12 @@ class Doc(Element):
 
     _children = ['metadata', 'content']
 
-    def __init__(self, *args, metadata={}, format='html', api_version=None):
+    def __init__(self, *args: List[Block], metadata: Dict=None, format: str='html', api_version: Tuple[int]=None):
+        super(Doc, self).__init__()
+        if metadata is None:
+            metadata = {}
         self._set_content(args, Block)
+        self._metadata = None
         self.metadata = metadata
         self.format = format  # Output format
 
@@ -98,10 +99,9 @@ class Doc(Element):
 
 class Null(Block):
     """Nothing
-
-    :Base: :class:`Block`
     """
     __slots__ = []
+    _children = []
 
     def to_json(self):
         return {'t': 'Null'}
@@ -109,10 +109,9 @@ class Null(Block):
 
 class Space(Inline):
     """Inter-word space
-
-    :Base: :class:`Inline`
      """
     __slots__ = []
+    _children = []
 
     def to_json(self):
         return {'t': 'Space'}
@@ -120,10 +119,9 @@ class Space(Inline):
 
 class HorizontalRule(Block):
     """Horizontal rule
-
-     :Base: :class:`Block`
      """
     __slots__ = []
+    _children = []
 
     def to_json(self):
         return {'t': 'HorizontalRule'}
@@ -131,10 +129,9 @@ class HorizontalRule(Block):
 
 class SoftBreak(Inline):
     """Soft line break
-
-     :Base: :class:`Inline`
-     """
+    """
     __slots__ = []
+    _children = []
 
     def to_json(self):
         return {'t': 'SoftBreak'}
@@ -142,10 +139,9 @@ class SoftBreak(Inline):
 
 class LineBreak(Inline):
     """Hard line break
-
-     :Base: :class:`Inline`
-     """
+    """
     __slots__ = []
+    _children = []
 
     def to_json(self):
         return {'t': 'LineBreak'}
@@ -157,27 +153,11 @@ class LineBreak(Inline):
 
 class Plain(Block):
     """Plain text, not a paragraph
-
-    :param args: contents of the plain block of text
-    :type args: :class:`Inline`
-    :Base: :class:`Block`
     """
-    __slots__ = ['_content']
-    _children = ['content']
-
-    def __init__(self, *args):
-        self._set_content(args, Inline)
-
-    def _slots_to_json(self):
-        return self.content.to_json()
 
 
 class Para(Block):
     """Paragraph
-
-    :param args: contents of the paragraph
-    :type args: :class:`Inline`
-    :Base: :class:`Block`
 
     :Example:
 
@@ -185,146 +165,54 @@ class Para(Block):
         >>> para1 = Para(*content)
         >>> para2 = Para(Str('More'), Space, Str('words.'))
     """
-    __slots__ = ['_content']
-    _children = ['content']
-
-    def __init__(self, *args):
-        self._set_content(args, Inline)
-
-    def _slots_to_json(self):
-        return self.content.to_json()
 
 
 class BlockQuote(Block):
     """Block quote
-
-    :param args: sequence of blocks
-    :type args: :class:`Block`
-    :Base: :class:`Block`
-     """
-    __slots__ = ['_content']
-    _children = ['content']
-
-    def __init__(self, *args):
-        self._set_content(args, Block)
-
-    def _slots_to_json(self):
-        return self.content.to_json()
+    """
 
 
 class Emph(Inline):
     """Emphasized text
-
-    :param args: elements that will be emphasized
-    :type args: :class:`Inline`
-    :Base: :class:`Inline`
-     """
-    __slots__ = ['_content']
-    _children = ['content']
-
-    def __init__(self, *args):
-        self._set_content(args, Inline)
-
-    def _slots_to_json(self):
-        return self.content.to_json()
+    """
 
 
 class Strong(Inline):
     """Strongly emphasized text
-
-    :param args: elements that will be emphasized
-    :type args: :class:`Inline`
-    :Base: :class:`Inline`
-     """
-    __slots__ = ['_content']
-    _children = ['content']
-
-    def __init__(self, *args):
-        self._set_content(args, Inline)
-
-    def _slots_to_json(self):
-        return self.content.to_json()
+    """
 
 
 class Strikeout(Inline):
     """Strikeout text
-
-    :param args: elements that will be striken out
-    :type args: :class:`Inline`
-    :Base: :class:`Inline`
-     """
-    __slots__ = ['_content']
-    _children = ['content']
-
-    def __init__(self, *args):
-        self._set_content(args, Inline)
-
-    def _slots_to_json(self):
-        return self.content.to_json()
+    """
 
 
 class Superscript(Inline):
     """Superscripted text (list of inlines)
-
-    :param args: elements that will be set superscript
-    :type args: :class:`Inline`
-    :Base: :class:`Inline`
-     """
-    __slots__ = ['_content']
-    _children = ['content']
-
-    def __init__(self, *args):
-        self._set_content(args, Inline)
-
-    def _slots_to_json(self):
-        return self.content.to_json()
+    """
 
 
 class Subscript(Inline):
     """Subscripted text (list of inlines)
-
-    :param args: elements that will be set suberscript
-    :type args: :class:`Inline`
-    :Base: :class:`Inline`
-     """
-    __slots__ = ['_content']
-    _children = ['content']
-
-    def __init__(self, *args):
-        self._set_content(args, Inline)
-
-    def _slots_to_json(self):
-        return self.content.to_json()
+    """
 
 
 class SmallCaps(Inline):
     """Small caps text (list of inlines)
-
-    :param args: elements that will be set with small caps
-    :type args: :class:`Inline`
-    :Base: :class:`Inline`
-     """
-    __slots__ = ['_content']
-    _children = ['content']
-
-    def __init__(self, *args):
-        self._set_content(args, Inline)
-
-    def _slots_to_json(self):
-        return self.content.to_json()
+    """
 
 
-class Note(Inline):
+class Note(InlineBlock):
     """Footnote or endnote
 
     :param args: elements that are part of the note
-    :type args: :class:`Block`
     :Base: :class:`Inline`
      """
     __slots__ = ['_content']
     _children = ['content']
 
     def __init__(self, *args):
+        super(Note, self).__init__(*args)
         self._set_content(args, Block)
 
     def _slots_to_json(self):
@@ -334,12 +222,10 @@ class Note(Inline):
 # ---------------------------
 # Classes - Complex Containers
 # ---------------------------
-
 class Header(Block):
     """Header
 
     :param args: contents of the header
-    :type args: :class:`Inline`
     :param level: level of the header (1 is the largest and 6 the smallest)
     :type level: ``int``
     :param identifier: element identifier (usually unique)
@@ -356,16 +242,13 @@ class Header(Block):
         >>> header = Header(*title, level=2, identifier='toc')
         >>> header.level += 1
      """
-    __slots__ = ['level', '_content', 'identifier', 'classes', 'attributes']
-    _children = ['content']
+    __slots__ = Block.__slots__ + ['level']
 
-    def __init__(self, *args, level=1,
-                 identifier='', classes=[], attributes={}):
+    def __init__(self, *args: List[Inline], level: int=1, **kwargs):
+        super(Header, self).__init__(*args, **kwargs)
         self.level = check_type(level, int)
         if not 0 < self.level <= 6:
             raise TypeError('Header level not between 1 and 6')
-        self._set_ica(identifier, classes, attributes)
-        self._set_content(args, Inline)
 
     def _slots_to_json(self):
         return [self.level, self._ica_to_json(), self.content.to_json()]
@@ -373,49 +256,16 @@ class Header(Block):
 
 class Div(Block):
     """Generic block container with attributes
-
-    :param args: contents of the div
-    :type args: :class:`Block`
-    :param identifier: element identifier (usually unique)
-    :type identifier: :class:`str`
-    :param classes: class names of the element
-    :type classes: :class:`list` of :class:`str`
-    :param attributes: additional attributes
-    :type attributes: :class:`dict`
-    :Base: :class:`Block`
-     """
-
-    __slots__ = ['_content', 'identifier', 'classes', 'attributes']
-    _children = ['content']
-
-    def __init__(self, *args, identifier='', classes=[], attributes={}):
-        self._set_ica(identifier, classes, attributes)
-        self._set_content(args, Block)
+    """
+    child_type = Block
 
     def _slots_to_json(self):
         return [self._ica_to_json(), self.content.to_json()]
 
 
-class Span(Inline):
+class Span(InlineBlock):
     """Generic block container with attributes
-
-    :param args: contents of the div
-    :type args: :class:`Inline`
-    :param identifier: element identifier (usually unique)
-    :type identifier: :class:`str`
-    :param classes: class names of the element
-    :type classes: :class:`list` of :class:`str`
-    :param attributes: additional attributes
-    :type attributes: :class:`dict`
-    :Base: :class:`Inline`
-     """
-
-    __slots__ = ['_content', 'identifier', 'classes', 'attributes']
-    _children = ['content']
-
-    def __init__(self, *args, identifier='', classes=[], attributes={}):
-        self._set_ica(identifier, classes, attributes)
-        self._set_content(args, Inline)
+    """
 
     def _slots_to_json(self):
         return [self._ica_to_json(), self.content.to_json()]
@@ -423,20 +273,13 @@ class Span(Inline):
 
 class Quoted(Inline):
     """Quoted text
+    """
 
-    :param args: contents of the quote
-    :type args: :class:`Inline`
-    :param quote_type: either 'SingleQuote' or 'DoubleQuote'
-    :type quote_type: ``str``
-    :Base: :class:`Inline`
-     """
+    __slots__ = Inline.__slots__ + ['quote_type']
 
-    __slots__ = ['quote_type', '_content']
-    _children = ['content']
-
-    def __init__(self, *args, quote_type='DoubleQuote'):
+    def __init__(self, *args: List[Inline], quote_type: str='DoubleQuote'):
+        super(Quoted, self).__init__(*args)
         self.quote_type = check_group(quote_type, QUOTE_TYPES)
-        self._set_content(args, Inline)
 
     def _slots_to_json(self):
         quote_type = {'t': self.quote_type}
@@ -449,19 +292,17 @@ class Quoted(Inline):
 
 class Cite(Inline):
     """Cite: set of citations with related text
+    """
 
-    :param args: contents of the cite (the raw text)
-    :type args: :class:`Inline`
-    :param citations: sequence of citations
-    :type citations: [:class:`Citation`]
-    :Base: :class:`Inline`
-     """
+    __slots__ = Inline.__slots__ + ['_citations']
+    _children = Inline._children + ['citations']
 
-    __slots__ = ['_content', '_citations']
-    _children = ['content', 'citations']
+    def __init__(self, *args: List[Inline], citations: List[Citation]=None):
+        super(Cite, self).__init__(*args)
+        self._citations = None
 
-    def __init__(self, *args, citations=[]):
-        self._set_content(args, Inline)
+        if citations is None:
+            citations = []
         self.citations = citations
 
     # Cannot access citations directly b/c that would mess up .parent
@@ -471,9 +312,7 @@ class Cite(Inline):
 
     @citations.setter
     def citations(self, value):
-        value = value.list if isinstance(value, ListContainer) else list(value)
-        self._citations = ListContainer(*value, oktypes=Citation, parent=self)
-        self._citations.location = 'citations'
+        self._citations = ListContainer(value, oktypes=Citation, parent=self, location='citations')
 
     def _slots_to_json(self):
         return [self.citations.to_json(), self.content.to_json()]
@@ -503,9 +342,13 @@ class Citation(Element):
     __slots__ = ['id', 'mode', '_prefix', '_suffix', 'note_num', 'hash']
     _children = ['prefix', 'suffix']
 
-    def __init__(self, id, mode='NormalCitation', prefix='', suffix='',
-                 hash=0, note_num=0):
-        self.id = check_type(id, basestring)
+    def __init__(self, id: str, mode: str='NormalCitation', prefix: str='', suffix: str='',
+                 hash: int=0, note_num: int=0):
+        super(Citation, self).__init__(identifier=id)
+        self._prefix = None
+        self._suffix = None
+
+        self.id = check_type(id, str)
         self.mode = check_group(mode, CITATION_MODE)
         self.hash = check_type(hash, int)
         self.note_num = check_type(note_num, int)
@@ -518,9 +361,7 @@ class Citation(Element):
 
     @prefix.setter
     def prefix(self, value):
-        value = value.list if isinstance(value, ListContainer) else list(value)
-        self._prefix = ListContainer(*value, oktypes=Inline, parent=self)
-        self._prefix.location = 'prefix'
+        self._prefix = ListContainer(value, oktypes=Inline, parent=self, location='prefix')
 
     @property
     def suffix(self):
@@ -528,9 +369,7 @@ class Citation(Element):
 
     @suffix.setter
     def suffix(self, value):
-        value = value.list if isinstance(value, ListContainer) else list(value)
-        self._suffix = ListContainer(*value, oktypes=Inline, parent=self)
-        self._suffix.location = 'suffix'
+        self._suffix = ListContainer(value, oktypes=Inline, parent=self, location='suffix')
 
     def to_json(self):
         # Replace default .to_json ; we don't need _slots_to_json()
@@ -555,12 +394,11 @@ class Citation(Element):
         return ans
 
 
-class Link(Inline):
+class Link(InlineBlock):
     """
     Hyperlink
 
     :param args: text with the link description
-    :type args: :class:`Inline`
     :param url: URL or path of the link
     :type url: ``str``
     :param title: Alt. title
@@ -578,24 +416,21 @@ class Link(Inline):
                  'identifier', 'classes', 'attributes']
     _children = ['content']
 
-    def __init__(self, *args, url='', title='',
-                 identifier='', classes=[], attributes={}):
-        self._set_content(args, Inline)
-        self._set_ica(identifier, classes, attributes)
-        self.url = check_type(url, basestring)
-        self.title = check_type(title, basestring)
+    def __init__(self, *args: List[Inline], url: str='', title: str='', **kwargs):
+        super(Link, self).__init__(*args, **kwargs)
+        self.url = check_type(url, str)
+        self.title = check_type(title, str)
 
     def _slots_to_json(self):
         ut = [self.url, self.title]
         return [self._ica_to_json(), self.content.to_json(), ut]
 
 
-class Image(Inline):
+class Image(InlineBlock):
     """
     Image
 
     :param args: text with the image description
-    :type args: :class:`Inline`
     :param url: URL or path of the image
     :type url: ``str``
     :param title: Alt. title
@@ -609,16 +444,12 @@ class Image(Inline):
     :Base: :class:`Inline`
      """
 
-    __slots__ = ['_content', 'url', 'title',
-                 'identifier', 'classes', 'attributes']
-    _children = ['content']
+    __slots__ = InlineBlock.__slots__ + ['url', 'title']
 
-    def __init__(self, *args, url='', title='',
-                 identifier='', classes=[], attributes={}):
-        self._set_content(args, Inline)
-        self._set_ica(identifier, classes, attributes)
-        self.url = check_type(url, basestring)
-        self.title = check_type(title, basestring)
+    def __init__(self, *args: List[Inline], url: str='', title: str='', **kwargs):
+        super(Image, self).__init__(*args, **kwargs)
+        self.url = check_type(url, str)
+        self.title = check_type(title, str)
 
     def _slots_to_json(self):
         ut = [self.url, self.title]
@@ -639,9 +470,12 @@ class Str(Inline):
      """
 
     __slots__ = ['text']
+    _children = []
 
-    def __init__(self, text):
-        self.text = check_type(text, basestring)
+
+    def __init__(self, text: str):
+        super(Str, self).__init__()
+        self.text = check_type(text, str)
 
     def __repr__(self):
         return 'Str({})'.format(self.text)
@@ -665,78 +499,40 @@ class CodeBlock(Block):
     :Base: :class:`Block`
      """
 
-    __slots__ = ['text', 'identifier', 'classes', 'attributes']
+    __slots__ = Block.__slots__ + ['text']
+    _children = []
 
-    def __init__(self, text, identifier='', classes=[], attributes={}):
-        self.text = check_type(text, basestring)
-        self._set_ica(identifier, classes, attributes)
+    def __init__(self, text: str, **kwargs):
+        super(CodeBlock, self).__init__(**kwargs)
+        self.text = check_type(text, str)
 
     def _slots_to_json(self):
         return [self._ica_to_json(), self.text]
 
 
-class RawBlock(Block):
+class RawBlock(BlockText):
     """
     Raw block
-
-    :param text: a string of raw text with another underlying format
-    :type text: :class:`str`
-    :param format: Format of the raw text ('html', 'tex' or 'latex')
-    :type format: ``str``
-    :Base: :class:`Block`
-     """
-
-    __slots__ = ['text', 'format']
-
-    def __init__(self, text, format='html'):
-        self.text = check_type(text, basestring)
-        self.format = check_group(format, RAW_FORMATS)
-
+    """
     def _slots_to_json(self):
         return [self.format, self.text]
 
 
-class Code(Inline):
+class Code(BlockText):
     """
     Inline code (literal)
-
-    :param text: literal text (preformatted text, code, etc.)
-    :type text: :class:`str`
-    :param identifier: element identifier (usually unique)
-    :type identifier: :class:`str`
-    :param classes: class names of the element
-    :type classes: :class:`list` of :class:`str`
-    :param attributes: additional attributes
-    :type attributes: :class:`dict`
-    :Base: :class:`Inline`
      """
-
-    __slots__ = ['text', 'identifier', 'classes', 'attributes']
-
-    def __init__(self, text, identifier='', classes=[], attributes={}):
-        self.text = check_type(text, basestring)
-        self._set_ica(identifier, classes, attributes)
 
     def _slots_to_json(self):
         ica = self._ica_to_json()
         return [ica, self.text]
 
 
-class Math(Inline):
+class Math(InlineText):
     """TeX math (literal)
+    """
 
-    :param text: a string of raw text representing TeX math
-    :type text: :class:`str`
-    :param format: How the math will be typeset ('DisplayMath' or 'InlineMath')
-    :type format: ``str``
-    :Base: :class:`Inline`
-     """
-
-    __slots__ = ['text', 'format']
-
-    def __init__(self, text, format='DisplayMath'):
-        self.text = check_type(text, basestring)
-        self.format = check_group(format, MATH_FORMATS)
+    default_format = 'DisplayMath'
 
     def _slots_to_json(self):
         format = {'t': self.format}
@@ -747,21 +543,11 @@ class Math(Inline):
         return [format, self.text]
 
 
-class RawInline(Inline):
+class RawInline(InlineText):
     """Raw inline text
+    """
 
-    :param text: a string of raw text with another underlying format
-    :type text: :class:`str`
-    :param format: Format of the raw text ('html', 'tex' or 'latex')
-    :type format: ``str``
-    :Base: :class:`Inline`
-     """
-
-    __slots__ = ['text', 'format']
-
-    def __init__(self, text, format='html'):
-        self.text = check_type(text, basestring)
-        self.format = check_group(format, RAW_FORMATS)
+    default_format = 'html'
 
     def _slots_to_json(self):
         return [self.format, self.text]
@@ -771,46 +557,22 @@ class RawInline(Inline):
 # Classes - Lists
 # ---------------------------
 
-class ListItem(Element):
+class ListItem(Block):
     """List item (contained in bullet lists and ordered lists)
-
-    :param args: List item
-    :type args: :class:`Block`
-    :Base: :class:`Element`
-     """
-    __slots__ = ['_content']
-    _children = ['content']
-
-    def __init__(self, *args):
-        self._set_content(args, Block)
-
-    def to_json(self):
-        return self.content.to_json()
+    """
+    child_type = Block
 
 
 class BulletList(Block):
     """Bullet list (unordered list)
-
-    :param args: List item
-    :type args: :class:`ListItem` | ``list``
-    :Base: :class:`Block`
-     """
-
-    __slots__ = ['_content']
-    _children = ['content']
-
-    def __init__(self, *args):
-        self._set_content(args, ListItem)
-
-    def _slots_to_json(self):
-        return self.content.to_json()
+    """
+    child_type = ListItem
 
 
 class OrderedList(Block):
     """Ordered list (attributes and a list of items, each a list of blocks)
 
     :param args: List item
-    :type args: :class:`ListItem` | ``list``
     :param start: Starting value of the list
     :type start: :class:`int`
     :param style: Style of the number delimiter
@@ -822,12 +584,12 @@ class OrderedList(Block):
     :type delimiter: :class:`str`
     :Base: :class:`Block`
      """
+    child_type = ListItem
 
-    __slots__ = ['_content', 'start', 'style', 'delimiter']
-    _children = ['content']
+    __slots__ = Block.__slots__ = ['_content', 'start', 'style', 'delimiter']
 
-    def __init__(self, *args, start=1, style='Decimal', delimiter='Period'):
-        self._set_content(args, ListItem)
+    def __init__(self, *args: List[ListItem], start=1, style='Decimal', delimiter='Period'):
+        super(OrderedList, self).__init__(*args)
         self.start = check_type(start, int)
         self.style = check_group(style, LIST_NUMBER_STYLES)
         self.delimiter = check_group(delimiter, LIST_NUMBER_DELIMITERS)
@@ -845,22 +607,13 @@ class OrderedList(Block):
         return [ssd, self.content.to_json()]
 
 
-class Definition(Element):
+class Definition(Block):
     """The definition (description); used in a definition list.
     It can include code and all other block elements.
 
-    :param args: elements
-    :type args: :class:`Block`
     :Base: :class:`Element`
      """
-    __slots__ = ['_content']
-    _children = ['content']
-
-    def __init__(self, *args):
-        self._set_content(args, Block)
-
-    def to_json(self):
-        return self.content.to_json()
+    child_type = Block
 
 
 class DefinitionItem(Element):
@@ -875,13 +628,16 @@ class DefinitionItem(Element):
     :type term: [:class:`Inline`]
     :param definitions: List of definitions or descriptions
         (each a block holder)
-    :type definition: [:class:`Definition`]
     :Base: :class:`Element`
     """
     __slots__ = ['_term', '_definitions']
     _children = ['term', 'definitions']
 
-    def __init__(self, term, definitions):
+    def __init__(self, term: List[Inline], definitions: List[Definition]):
+        super(DefinitionItem, self).__init__()
+        self._term = None
+        self._definitions = None
+
         self.term = term
         self.definitions = definitions
 
@@ -896,9 +652,7 @@ class DefinitionItem(Element):
 
     @term.setter
     def term(self, value):
-        value = value.list if isinstance(value, ListContainer) else list(value)
-        self._term = ListContainer(*value, oktypes=Inline, parent=self)
-        self._term.location = 'term'
+        self._term = ListContainer(value, oktypes=Inline, parent=self, location='term')
 
     @property
     def definitions(self):
@@ -906,10 +660,8 @@ class DefinitionItem(Element):
 
     @definitions.setter
     def definitions(self, value):
-        value = value.list if isinstance(value, ListContainer) else list(value)
-        self._definitions = ListContainer(*value,
-                                          oktypes=Definition, parent=self)
-        self._definitions.location = 'definitions'
+        self._definitions = ListContainer(value,
+                                          oktypes=Definition, parent=self, location='definitions')
 
     def to_json(self):
         return [self.term.to_json(), self.definitions.to_json()]
@@ -935,89 +687,53 @@ class DefinitionList(Block):
         >>> definition_list = DefinitionList(spam, inquisition)
 
     :param args: Definition items (a term with definitions)
-    :type args: :class:`DefinitionItem`
     :Base: :class:`Block`
      """
 
-    __slots__ = ['_content']
-    _children = ['content']
-
-    def __init__(self, *args):
-        self._set_content(args, DefinitionItem)
-
-    def _slots_to_json(self):
-        return self.content.to_json()
+    child_type = DefinitionItem
 
 
-class LineItem(Element):
+class LineItem(Block):
     """Line item (contained in line blocks)
 
     :param args: Line item
-    :type args: :class:`Inline`
     :Base: :class:`Element`
      """
     __slots__ = ['_content']
     _children = ['content']
-
-    def __init__(self, *args):
-        self._set_content(args, Inline)
-
-    def to_json(self):
-        return self.content.to_json()
 
 
 class LineBlock(Block):
     """Line block (sequence of lines)
-
-    :param args: Line item
-    :type args: :class:`LineItem` | ``list``
-    :Base: :class:`Block`
-     """
-
+    """
     __slots__ = ['_content']
     _children = ['content']
 
-    def __init__(self, *args):
-        self._set_content(args, LineItem)
-
-    def _slots_to_json(self):
-        return self.content.to_json()
+    child_type = LineItem
 
 
-class TableCell(Element):
+class TableCell(Block):
     """
     Table Cell
 
     :param args: elements
-    :type args: :class:`Block`
     :Base: :class:`Element`
      """
     __slots__ = ['_content']
     _children = ['content']
-
-    def __init__(self, *args):
-        self._set_content(args, Block)
-
-    def to_json(self):
-        return self.content.to_json()
+    child_type = Block
 
 
-class TableRow(Element):
+class TableRow(Block):
     """
     Table Row
 
     :param args: cells
-    :type args: :class:`TableCell`
     :Base: :class:`Element`
      """
     __slots__ = ['_content']
     _children = ['content']
-
-    def __init__(self, *args):
-        self._set_content(args, TableCell)
-
-    def to_json(self):
-        return self.content.to_json()
+    child_type = TableCell
 
 
 class Table(Block):
@@ -1035,7 +751,6 @@ class Table(Block):
         >>> table = Table(*rows, header=TableRow(c2,c1))
 
     :param args: Table rows
-    :type args: :class:`TableRow`
     :param header: A special row specifying the column headers
     :type header: :class:`TableRow`
     :param caption: The caption of the table
@@ -1051,9 +766,13 @@ class Table(Block):
     __slots__ = ['_content', '_header', '_caption',
                  'alignment', 'width', 'rows', 'cols']
     _children = ['header', 'content', 'caption']
+    child_type = TableRow
 
-    def __init__(self, *args, header=None, caption=None,
-                 alignment=None, width=None):
+    def __init__(self, *args: List[TableRow], header: TableRow=None, caption: Inline=None,
+                 alignment: str=None, width: List[float]=None):
+        super(Table, self).__init__(*args)
+        self._header = None
+        self._caption = None
 
         self._set_content(args, TableRow)
         self.rows = len(self.content)
@@ -1085,7 +804,7 @@ class Table(Block):
 
     @header.setter
     def header(self, value):
-        if (not value or value is None):
+        if not value or value is None:
             self._header = None
             return
 
@@ -1102,9 +821,7 @@ class Table(Block):
 
     @caption.setter
     def caption(self, value):
-        value = value.list if isinstance(value, ListContainer) else list(value)
-        self._caption = ListContainer(*value, oktypes=Inline, parent=self)
-        self._caption.location = 'caption'
+        self._caption = ListContainer(value, oktypes=Inline, parent=self, location='caption')
 
     def _slots_to_json(self):
         caption = [chunk.to_json() for chunk in self.caption]
@@ -1133,13 +850,13 @@ class MetaList(MetaValue):
     """Metadata list container
 
     :param args: contents of a metadata list
-    :type args: :class:`MetaValue`
     :Base: :class:`MetaValue`
     """
     __slots__ = ['_content']
     _children = ['content']
 
-    def __init__(self, *args):
+    def __init__(self, *args: List[MetaValue]):
+        super(MetaList, self).__init__(*args)
         args = [builtin2meta(v) for v in args]
         self._set_content(args, MetaValue)
 
@@ -1160,15 +877,15 @@ class MetaMap(MetaValue):
     """Metadata container for ordered dicts
 
     :param args: (key, value) tuples
-    :type args: :class:`MetaValue`
     :param kwargs: named arguments
-    :type kwargs: :class:`MetaValue`
+    :type kwargs: DictContainer[MetaValue]
     :Base: :class:`MetaValue`
     """
     __slots__ = ['_content']
     _children = ['content']
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: List[MetaValue], **kwargs):
+        super(MetaMap, self).__init__(*args)
         args = list(args)
         if kwargs:
             args.extend(kwargs.items())
@@ -1183,7 +900,7 @@ class MetaMap(MetaValue):
     # ---------------------------
 
     @property
-    def content(self):
+    def content(self) -> DictContainer:
         """
         Map of :class:`MetaValue` objects.
         """
@@ -1212,7 +929,6 @@ class MetaInlines(MetaValue):
     MetaInlines: list of arbitrary inlines within the metadata
 
     :param args: sequence of inline elements
-    :type args: :class:`Inline`
     :Base: :class:`MetaValue`
 
      """
@@ -1220,7 +936,8 @@ class MetaInlines(MetaValue):
     __slots__ = ['_content']
     _children = ['content']
 
-    def __init__(self, *args):
+    def __init__(self, *args: List[Inline]):
+        super(MetaInlines, self).__init__(*args)
         self._set_content(args, Inline)
 
     def _slots_to_json(self):
@@ -1231,15 +948,15 @@ class MetaBlocks(MetaValue):
     """
     MetaBlocks: list of arbitrary blocks within the metadata
 
-    :param args: sequence of block elements
-    :type args: :class:`Block`
+    :param args: sequence of Block elements
     :Base: :class:`MetaValue`
     """
 
     __slots__ = ['_content']
     _children = ['content']
 
-    def __init__(self, *args):
+    def __init__(self, *args: List[Block]):
+        super(MetaBlocks, self).__init__(*args)
         self._set_content(args, Block)
 
     def _slots_to_json(self):
@@ -1258,8 +975,9 @@ class MetaString(MetaValue):
 
     __slots__ = ['text']
 
-    def __init__(self, text):
-        self.text = check_type(text, basestring)
+    def __init__(self, text: str):
+        super(MetaString, self).__init__()
+        self.text = check_type(text, str)
 
     def __repr__(self):
         return 'MetaString({})'.format(self.text)
@@ -1279,7 +997,8 @@ class MetaBool(MetaValue):
 
     __slots__ = ['boolean']
 
-    def __init__(self, boolean):
+    def __init__(self, boolean: bool):
+        super(MetaBool, self).__init__()
         self.boolean = check_type(boolean, bool)
 
     def __repr__(self):
@@ -1287,35 +1006,6 @@ class MetaBool(MetaValue):
 
     def _slots_to_json(self):
         return self.boolean
-
-
-# ---------------------------
-# Constants
-# ---------------------------
-
-LIST_NUMBER_STYLES = {
-    'DefaultStyle', 'Example', 'Decimal', 'LowerRoman',
-    'UpperRoman', 'LowerAlpha', 'UpperAlpha'
-}
-
-LIST_NUMBER_DELIMITERS = {'DefaultDelim', 'Period', 'OneParen', 'TwoParens'}
-
-TABLE_ALIGNMENT = {'AlignLeft', 'AlignRight', 'AlignCenter', 'AlignDefault'}
-
-QUOTE_TYPES = {'SingleQuote', 'DoubleQuote'}
-
-CITATION_MODE = {'AuthorInText', 'SuppressAuthor', 'NormalCitation'}
-# AuthorInText: @foo - as John Doe (1921) said
-# SupressAuthor: [-@foo]
-
-MATH_FORMATS = {'DisplayMath', 'InlineMath'}
-
-RAW_FORMATS = {'html', 'tex', 'latex'}
-
-SPECIAL_ELEMENTS = LIST_NUMBER_STYLES | LIST_NUMBER_DELIMITERS | \
-    MATH_FORMATS | TABLE_ALIGNMENT | QUOTE_TYPES | CITATION_MODE
-
-EMPTY_ELEMENTS = {Null, Space, HorizontalRule, SoftBreak, LineBreak}
 
 
 # ---------------------------

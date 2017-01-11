@@ -8,6 +8,7 @@ object, and the attribute of the parent object that they correspond to.
 # ---------------------------
 
 from collections import OrderedDict, MutableSequence, MutableMapping
+from itertools import chain
 from .utils import check_type, encode_dict  # check_group
 
 import sys
@@ -42,13 +43,17 @@ class ListContainer(MutableSequence):
 
     __slots__ = ['list', 'oktypes', 'parent', 'location']
 
-    def __init__(self, *args, oktypes=object, parent=None):
+    def __init__(self, *args, oktypes=object, parent=None, location: str=None):
         self.oktypes = oktypes
         self.parent = parent
-        self.location = None  # Cannot be set through __init__
+        self.location = location
 
         self.list = list()
-        self.extend(args)  # self.oktypes must be set first
+
+        # self.oktypes must be set first
+        for value in args:
+            value = value.list if isinstance(value, ListContainer) else list(value)
+            self.extend(value)
 
     def __contains__(self, item):
         return item in self.list
@@ -85,6 +90,16 @@ class ListContainer(MutableSequence):
 
     def to_json(self):
         return [to_json_wrapper(item) for item in self.list]
+
+    def walk(self, action, doc):
+        ans = (item.walk(action, doc) for item in self)
+        # We need to convert single elements to iterables, so that they
+        # can be flattened later
+        ans = ((item,) if type(item) != list else item for item in ans)
+        # Flatten the list, by expanding any sublists
+        ans = list(chain.from_iterable(ans))
+
+        return ans
 
 
 class DictContainer(MutableMapping):
@@ -139,8 +154,13 @@ class DictContainer(MutableMapping):
     def to_json(self):
         items = self.dict.items()
         return OrderedDict((k, to_json_wrapper(v)) for k, v in items)
-        return [item.to_json() for item in self.dict]
+        # return [item.to_json() for item in self.dict]
 
+    def walk(self, action, doc):
+        ans = [(k, v.walk(action, doc)) for k, v in self.items()]
+        ans = [(k, v) for k, v in ans if v != []]
+
+        return ans
 
 # ---------------------------
 # Functions

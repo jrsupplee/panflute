@@ -17,7 +17,7 @@ def check_type(value, oktypes):
     # This allows 'Space' instead of 'Space()'
     if callable(value):
         value = value()
-    if not isinstance(value, oktypes):
+    if not issubclass(value, oktypes):
         tag = type(value).__name__
         msg = 'received {} but expected {}'.format(tag, oktypes)
         raise TypeError(msg)

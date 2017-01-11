@@ -6,16 +6,16 @@ Base classes and methods of all Pandoc elements
 # Imports
 # ---------------------------
 
-from operator import attrgetter
-from collections import OrderedDict, MutableSequence, MutableMapping
+# from operator import attrgetter
+from collections import OrderedDict
 from itertools import chain
 
 from .containers import ListContainer, DictContainer
-from .utils import check_type, encode_dict  # check_group
+from .utils import check_type, encode_dict, check_group
+from .constants import *
 
-import sys
-py2 = sys.version_info[0] == 2
-if not py2: basestring = str
+# import sys
+from typing import List, AnyStr, Dict
 
 
 # ---------------------------
@@ -27,15 +27,15 @@ class Element(object):
     """
     Base class of all Pandoc elements
     """
-    __slots__ = ['parent', 'location']
+    __slots__ = ['parent', 'location', 'identifier', 'classes', 'attributes', '_content']
     _children = []
+    child_type = None
 
-    def __new__(cls, *args, **kwargs):
-        # This is just to initialize self.parent to None
-        element = object.__new__(cls)
-        element.parent = None
-        element.location = None
-        return element
+    def __init__(self, identifier: str=None, parent: 'Element'=None, location=None):
+        self.identifier = identifier
+        self.parent = parent
+        self.location = location
+        self._content = None
 
     @property
     def tag(self):
@@ -84,8 +84,8 @@ class Element(object):
     # ---------------------------
 
     def _set_ica(self, identifier, classes, attributes):
-        self.identifier = check_type(identifier, basestring)
-        self.classes = [check_type(cl, basestring) for cl in classes]
+        self.identifier = check_type(identifier, str)
+        self.classes = [check_type(cl, str) for cl in classes]
         self.attributes = OrderedDict(attributes)
 
     def _ica_to_json(self):
@@ -96,7 +96,7 @@ class Element(object):
     # ---------------------------
 
     @property
-    def content(self):
+    def content(self) -> ListContainer:
         """
         Sequence of :class:`Element` objects (usually either :class:`Block`
         or :class:`Inline`) that are "children" of the current element.
@@ -112,8 +112,7 @@ class Element(object):
     @content.setter
     def content(self, value):
         oktypes = self._content.oktypes
-        value = value.list if isinstance(value, ListContainer) else list(value)
-        self._content = ListContainer(*value, oktypes=oktypes, parent=self)
+        self._content = ListContainer(value, oktypes=oktypes, parent=self)
 
     def _set_content(self, value, oktypes):
         """
@@ -121,7 +120,7 @@ class Element(object):
         """
         if value is None:
             value = []
-        self._content = ListContainer(*value, oktypes=oktypes, parent=self)
+        self._content = ListContainer(value, oktypes=oktypes, parent=self)
 
     # ---------------------------
     # Navigation
@@ -158,7 +157,7 @@ class Element(object):
             else:
                 assert self is container  # id(self) == id(container)
 
-    def offset(self, n):
+    def offset(self, n) -> 'Element':
         """
         Return a sibling element offset by n
 
@@ -171,6 +170,8 @@ class Element(object):
             container = self.container
             if 0 <= sibling < len(container):
                 return container[sibling]
+
+        return None
 
     @property
     def next(self):
@@ -257,26 +258,19 @@ class Element(object):
         # First iterate over children
         for child in self._children:
             obj = getattr(self, child)
-            if isinstance(obj, Element):
-                ans = obj.walk(action, doc)
-            elif isinstance(obj, ListContainer):
-                ans = (item.walk(action, doc) for item in obj)
-                # We need to convert single elements to iterables, so that they
-                # can be flattened later
-                ans = ((item,) if type(item) != list else item for item in ans)
-                # Flatten the list, by expanding any sublists
-                ans = list(chain.from_iterable(ans))
-            elif isinstance(obj, DictContainer):
-                ans = [(k, v.walk(action, doc)) for k, v in obj.items()]
-                ans = [(k, v) for k, v in ans if v != []]
-            elif obj is None:
+            if obj is None:
                 pass  # Empty table headers or captions
+
+            elif hasattr(child, 'walk'):
+                ans = obj.walk(action, doc)
+                setattr(self, child, ans)
+
             else:
                 raise TypeError(type(obj))
-            setattr(self, child, ans)
 
         # Then apply the action to the element
         altered = action(self, doc)
+
         return self if altered is None else altered
 
 
@@ -284,14 +278,84 @@ class Inline(Element):
     """
     Base class of all inline elements
     """
-    __slots__ = []
+    __slots__ = ['_content']
+    _children = ['content']
+    # child_type = Inline
+
+    def __init__(self, *args: List['Inline']):
+        super(Inline, self).__init__()
+        self._set_content(args, self.child_type)
+
+    def _slots_to_json(self):
+        return self.content.to_json()
+
+Inline.child_type = Inline
+
+
+class InlineText(Inline):
+
+    __slots__ = ['text', 'format']
+    _children = []
+    default_format = None
+
+    def __init__(self, text: str, format: str=None):
+        super(Inline, self).__init__()
+        if format is None:
+            format = self.default_format
+
+        self.text = check_type(text, str)
+        self.format = check_group(format, RAW_FORMATS)
+
+    def _slots_to_json(self):
+        return [self.format, self.text]
 
 
 class Block(Element):
     """
     Base class of all block elements
     """
-    __slots__ = []
+    __slots__ = ['_content', 'identifier', 'classes', 'attributes']
+    _children = ['content']
+    child_type = Inline
+
+    def __init__(self, *args, identifier: str='', classes: List[AnyStr]=None, attributes: Dict=None, **kwargs):
+        super(Block, self).__init__(identifier=identifier)
+        if classes is None:
+            classes = []
+        if attributes is None:
+            attributes = {}
+
+        self._set_ica(identifier, classes, attributes)
+        self._set_content(args, self.child_type)
+
+    def _slots_to_json(self):
+        return self.content.to_json()
+
+
+class BlockText(Block):
+
+    __slots__ = ['text', 'format']
+    _children = []
+
+    def __init__(self, text: str, format: str='html'):
+        super(BlockText, self).__init__()
+        self.text = check_type(text, str)
+        self.format = check_group(format, RAW_FORMATS)
+
+    def _slots_to_json(self):
+        return [self.format, self.text]
+
+
+class InlineBlock(Inline, Block):
+    """
+    Base class of all inline block elements (e.g. Span)
+    """
+    __slots__ = ['_content', 'identifier', 'classes', 'attributes']
+    _children = ['content']
+
+    def __init__(self, *args: List[Inline], **kwargs):
+        super(InlineBlock, self).__init__(**kwargs)
+        self._set_content(args, Inline)
 
 
 class MetaValue(Element):
@@ -299,3 +363,4 @@ class MetaValue(Element):
     Base class of all metadata elements
     """
     __slots__ = []
+    _children =  []
